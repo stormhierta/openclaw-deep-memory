@@ -1,0 +1,24 @@
+{
+  "name": "openclaw-deep-memory",
+  "version": "0.1.0",
+  "description": "Deep cross-session persistent memory and recall for OpenClaw agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "openclaw": {
+    "extensions": ["./dist/index.js"]
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0"
+  }
+}
