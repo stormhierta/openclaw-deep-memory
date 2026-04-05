@@ -12,6 +12,7 @@ import { BuiltinMemoryProvider } from './memory/builtin-memory-provider.js';
 import { SessionIndexer } from './memory/session-indexer.js';
 import { initMemoryTool, memoryTool } from './tools/memory-tool-schema.js';
 import { initRecallTool, recallMemoryTool } from './tools/recall-memory-schema.js';
+import { MemoryDistiller } from './memory/memory-distiller.js';
 
 export const VERSION = '0.1.0';
 
@@ -19,6 +20,7 @@ export const VERSION = '0.1.0';
 let memoryStore: MemoryStore | null = null;
 let memoryProvider: BuiltinMemoryProvider | null = null;
 let sessionIndexer: SessionIndexer | null = null;
+let memoryDistiller: MemoryDistiller | null = null;
 
 /**
  * Get the memory store instance (for testing/internal use)
@@ -71,9 +73,33 @@ async function register(api: OpenClawPluginApi): Promise<void> {
   logger.info('[deep-memory] Registering recall_memory tool');
   api.registerTool(recallMemoryTool);
 
-  // TODO: Expose system prompt block for prefetch injection
-  // Check for api.addSystemPromptBlock() or similar in OpenClaw SDK
-  // If available: api.addSystemPromptBlock(memoryProvider.systemPromptBlock());
+  // Wire system prompt block into before_prompt_build hook
+  api.on('before_prompt_build', async (_event, _ctx) => {
+    if (!memoryProvider) return;
+    const block = memoryProvider.systemPromptBlock();
+    if (block) {
+      return { appendSystemContext: block };
+    }
+  });
+
+  // Initialize memory distiller and wire to session_end hook
+  memoryDistiller = new MemoryDistiller(memoryStore, sessionIndexer);
+
+  api.on('session_end', async (_event, _ctx) => {
+    if (!memoryDistiller || !sessionIndexer) return;
+    try {
+      // Re-index to pick up the session that just ended, then distill
+      await sessionIndexer.index(1); // last 1 day
+      const sessions = sessionIndexer.getSessions(1);
+      if (sessions.length > 0) {
+        // Distill the most recent session
+        const latest = sessions[sessions.length - 1];
+        await memoryDistiller.distillSession(latest.id);
+      }
+    } catch (err) {
+      logger.warn(`[deep-memory] session_end distillation failed: ${err}`);
+    }
+  });
 
   logger.info('[deep-memory] Plugin registration complete');
 }
