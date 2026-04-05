@@ -260,6 +260,36 @@ export class SessionIndexer {
     return stmt.all(sessionId) as Array<{ role: string; content: string; timestamp: string }>;
   }
 
+  getSessions(sinceDays?: number): Array<{ id: string; agent: string; startedAt: string }> {
+    let stmt: Database.Statement;
+    let rows: Array<{ id: string; agent: string; started_at: string }>;
+
+    if (sinceDays !== undefined && sinceDays > 0) {
+      const cutoffMs = Date.now() - sinceDays * 24 * 60 * 60 * 1000;
+      const cutoffIso = new Date(cutoffMs).toISOString();
+      stmt = this.db.prepare(`
+        SELECT id, agent, started_at
+        FROM sessions
+        WHERE started_at >= ?
+        ORDER BY started_at DESC
+      `);
+      rows = stmt.all(cutoffIso) as Array<{ id: string; agent: string; started_at: string }>;
+    } else {
+      stmt = this.db.prepare(`
+        SELECT id, agent, started_at
+        FROM sessions
+        ORDER BY started_at DESC
+      `);
+      rows = stmt.all() as Array<{ id: string; agent: string; started_at: string }>;
+    }
+
+    return rows.map(row => ({
+      id: row.id,
+      agent: row.agent,
+      startedAt: row.started_at
+    }));
+  }
+
   close(): void {
     this.db.close();
   }
