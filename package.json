@@ -19,6 +19,7 @@
     "@types/better-sqlite3": "^7.6.8",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
+    "openclaw": "file:/home/stormhierta/.npm-global/lib/node_modules/openclaw",
     "typescript": "^5.4.0"
   }
 }

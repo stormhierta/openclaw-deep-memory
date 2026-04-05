@@ -1,3 +1,69 @@
-// openclaw-deep-memory plugin entry point
-// Components wired here as chunks complete
-export {};
+/**
+ * OpenClaw Deep Memory Plugin
+ *
+ * Provides persistent curated memory (MEMORY.md / USER.md) via the memory tool.
+ * Source: matching bundled plugin firecrawl tool pattern
+ */
+
+import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
+import type { OpenClawPluginApi } from 'openclaw/plugin-sdk';
+import { MemoryStore } from './memory/memory-store.js';
+import { BuiltinMemoryProvider } from './memory/builtin-memory-provider.js';
+import { initMemoryTool, memoryTool } from './tools/memory-tool-schema.js';
+
+export const VERSION = '0.1.0';
+
+// Module-level store and provider instances
+let memoryStore: MemoryStore | null = null;
+let memoryProvider: BuiltinMemoryProvider | null = null;
+
+/**
+ * Get the memory store instance (for testing/internal use)
+ */
+export function getMemoryStore(): MemoryStore | null {
+  return memoryStore;
+}
+
+/**
+ * Get the memory provider instance (for testing/internal use)
+ */
+export function getMemoryProvider(): BuiltinMemoryProvider | null {
+  return memoryProvider;
+}
+
+/**
+ * Main plugin registration function
+ */
+async function register(api: OpenClawPluginApi): Promise<void> {
+  const { logger } = api;
+
+  logger.info(`[deep-memory] Initializing deep-memory plugin v${VERSION}`);
+
+  // Initialize memory store
+  memoryStore = new MemoryStore();
+
+  // Initialize memory provider (memory enabled, user profile enabled)
+  memoryProvider = new BuiltinMemoryProvider(memoryStore, true, true);
+  await memoryProvider.initialize({ sessionId: 'startup' });
+
+  // Initialize the memory tool with the store
+  initMemoryTool(memoryStore);
+
+  // Register the memory tool
+  logger.info('[deep-memory] Registering memory tool');
+  api.registerTool(memoryTool, {
+    name: 'memory',
+  });
+
+  logger.info('[deep-memory] Plugin registration complete');
+}
+
+/**
+ * Plugin export
+ */
+export default definePluginEntry({
+  id: 'deep-memory',
+  name: 'Deep Memory',
+  description: 'Persistent curated memory (MEMORY.md / USER.md) for OpenClaw agents',
+  register,
+});
