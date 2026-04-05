@@ -101,6 +101,39 @@ async function register(api: OpenClawPluginApi): Promise<void> {
     }
   });
 
+  // Per-turn sync via llm_output hook
+  api.on('llm_output', async (event, _ctx) => {
+    if (!memoryProvider) return;
+    const assistantContent = (event.assistantTexts ?? []).join('\n').trim();
+    if (assistantContent) {
+      await memoryProvider.syncTurn('', assistantContent); // user content not available here, use empty string
+    }
+  });
+
+  // Pre-compression hook via before_compaction
+  api.on('before_compaction', async (event, _ctx) => {
+    if (!memoryProvider) return;
+    const messages = (event.messages ?? []) as Array<{ role: string; content: unknown }>;
+    if (messages.length === 0) return;
+
+    // Convert messages to the expected format
+    const formatted = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+      }));
+
+    if (formatted.length > 0) {
+      const insight = memoryProvider.onPreCompress(formatted);
+      if (insight) {
+        logger.info(`[deep-memory] pre-compaction insight extracted: ${insight.slice(0, 100)}`);
+        // insight is a string to include in compression summary — we log it for now
+        // (no OpenClaw API to inject into the compression prompt available yet)
+      }
+    }
+  });
+
   logger.info('[deep-memory] Plugin registration complete');
 }
 

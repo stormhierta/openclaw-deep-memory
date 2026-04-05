@@ -57,6 +57,14 @@ Use this proactively when: a user references something from a previous session, 
     try {
       const results = _indexer.search(query, limit);
       if (results.length === 0) {
+        const sessionCount = _indexer.getSessionCount();
+        if (sessionCount === 0) {
+          return jsonResult({
+            success: true,
+            results: [],
+            message: 'No sessions indexed yet. Sessions are indexed automatically on startup and after each session ends. If this is a first run, sessions will be available after the next session completes.'
+          });
+        }
         return jsonResult({ success: true, results: [], message: 'No matching sessions found.' });
       }
       return jsonResult({ success: true, results, count: results.length });

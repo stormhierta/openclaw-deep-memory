@@ -4,7 +4,7 @@ import { join, basename } from 'node:path';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
-const SESSIONS_DIR = join(homedir(), '.openclaw', 'agents', 'main', 'sessions');
+const DEFAULT_SESSIONS_DIR = join(homedir(), '.openclaw', 'agents', 'main', 'sessions');
 const DB_PATH = join(homedir(), '.openclaw', 'deep-memory', 'session-index.db');
 
 export interface SearchResult {
@@ -29,9 +29,11 @@ interface IndexState {
 
 export class SessionIndexer {
   private db: Database.Database;
+  private sessionsDir: string;
 
-  constructor(dbPath?: string) {
+  constructor(dbPath?: string, sessionsDir?: string) {
     const targetPath = dbPath ?? DB_PATH;
+    this.sessionsDir = sessionsDir ?? DEFAULT_SESSIONS_DIR;
     // Ensure parent directory exists
     const dbDir = join(targetPath, '..');
     if (!existsSync(dbDir)) {
@@ -82,12 +84,12 @@ export class SessionIndexer {
     const errors: string[] = [];
 
     // Ensure sessions directory exists
-    if (!existsSync(SESSIONS_DIR)) {
+    if (!existsSync(this.sessionsDir)) {
       return { indexed: 0, skipped: 0, errors: 0 };
     }
 
     // List all jsonl files
-    const files = await readdir(SESSIONS_DIR);
+    const files = await readdir(this.sessionsDir);
     const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && !f.endsWith('.lock'));
 
     // Get already indexed files
@@ -103,7 +105,7 @@ export class SessionIndexer {
       : undefined;
 
     for (const filename of jsonlFiles) {
-      const filepath = join(SESSIONS_DIR, filename);
+      const filepath = join(this.sessionsDir, filename);
 
       try {
         // Check if already indexed
@@ -288,6 +290,11 @@ export class SessionIndexer {
       agent: row.agent,
       startedAt: row.started_at
     }));
+  }
+
+  getSessionCount(): number {
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM sessions').get() as { count: number };
+    return row.count;
   }
 
   close(): void {
