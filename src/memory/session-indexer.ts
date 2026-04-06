@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 
 const DEFAULT_SESSIONS_DIR = join(homedir(), '.openclaw', 'agents', 'main', 'sessions');
 const DB_PATH = join(homedir(), '.openclaw', 'deep-memory', 'session-index.db');
@@ -34,10 +34,10 @@ export class SessionIndexer {
   constructor(dbPath?: string, sessionsDir?: string) {
     const targetPath = dbPath ?? DB_PATH;
     this.sessionsDir = sessionsDir ?? DEFAULT_SESSIONS_DIR;
-    // Ensure parent directory exists
+    // Ensure parent directory exists before opening SQLite
     const dbDir = join(targetPath, '..');
     if (!existsSync(dbDir)) {
-      // Directory will be created by better-sqlite3 on open
+      mkdirSync(dbDir, { recursive: true });
     }
     this.db = new Database(targetPath);
     // Enable WAL mode for better concurrency

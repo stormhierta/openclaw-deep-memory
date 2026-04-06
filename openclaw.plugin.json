@@ -1,0 +1,23 @@
+{
+  "id": "deep-memory",
+  "name": "Deep Memory",
+  "description": "Persistent curated memory (MEMORY.md / USER.md), cross-session FTS5 recall, and automatic session distillation via local Gemma",
+  "version": "0.1.0",
+  "contracts": {
+    "tools": [
+      "memory",
+      "recall_memory"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "description": "Whether the deep-memory plugin is enabled",
+        "default": true
+      }
+    }
+  }
+}

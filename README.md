@@ -216,7 +216,6 @@ openclaw-deep-memory/
 │   ├── index.ts                          # Plugin entry, hook wiring
 │   ├── memory/
 │   │   ├── memory-store.ts               # MEMORY.md/USER.md read/write/scan
-│   │   ├── builtin-memory-provider.ts    # MemoryProvider adapter (redundant for main sessions)
 │   │   ├── session-indexer.ts            # JSONL → SQLite FTS5 indexer
 │   │   ├── memory-distiller.ts           # Ollama/Gemma session distillation
 │   │   └── memory-provider.ts            # Abstract MemoryProvider base class
@@ -231,7 +230,6 @@ openclaw-deep-memory/
 
 ## Known limitations
 
-- **System prompt injection is redundant for primary sessions.** OpenClaw already injects `MEMORY.md` and `USER.md` natively via workspace bootstrap. The `BuiltinMemoryProvider` and its `before_prompt_build` hook therefore duplicate what already happens without the plugin. This was an early design decision; the provider is retained for compatibility but the session-end distillation and tools are the primary reason to install the plugin.
 - **`llm_output` hook only captures assistant text.** The `before_prompt_build` and `llm_output` hooks do not have access to the full message history at arbitrary points in the conversation; they are used primarily for distillation and pre-compression insight extraction.
 - **FTS index is per-machine.** The SQLite index at `~/.openclaw/deep-memory/session-index.db` lives on the machine running OpenClaw. Sessions on other machines are not searched.
 - **Distillation is best-effort.** If Ollama is slow or unavailable, distillation silently skips. There is no retry queue.

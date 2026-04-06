@@ -8,7 +8,6 @@
 import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk';
 import { MemoryStore } from './memory/memory-store.js';
-import { BuiltinMemoryProvider } from './memory/builtin-memory-provider.js';
 import { SessionIndexer } from './memory/session-indexer.js';
 import { initMemoryTool, memoryTool } from './tools/memory-tool-schema.js';
 import { initRecallTool, recallMemoryTool } from './tools/recall-memory-schema.js';
@@ -18,7 +17,6 @@ export const VERSION = '0.1.0';
 
 // Module-level store and provider instances
 let memoryStore: MemoryStore | null = null;
-let memoryProvider: BuiltinMemoryProvider | null = null;
 let sessionIndexer: SessionIndexer | null = null;
 let memoryDistiller: MemoryDistiller | null = null;
 
@@ -27,13 +25,6 @@ let memoryDistiller: MemoryDistiller | null = null;
  */
 export function getMemoryStore(): MemoryStore | null {
   return memoryStore;
-}
-
-/**
- * Get the memory provider instance (for testing/internal use)
- */
-export function getMemoryProvider(): BuiltinMemoryProvider | null {
-  return memoryProvider;
 }
 
 /**
@@ -46,10 +37,6 @@ async function register(api: OpenClawPluginApi): Promise<void> {
 
   // Initialize memory store
   memoryStore = new MemoryStore();
-
-  // Initialize memory provider (memory enabled, user profile enabled)
-  memoryProvider = new BuiltinMemoryProvider(memoryStore, true, true);
-  await memoryProvider.initialize({ sessionId: 'startup' });
 
   // Initialize the memory tool with the store
   initMemoryTool(memoryStore);
@@ -73,15 +60,6 @@ async function register(api: OpenClawPluginApi): Promise<void> {
   logger.info('[deep-memory] Registering recall_memory tool');
   api.registerTool(recallMemoryTool);
 
-  // Wire system prompt block into before_prompt_build hook
-  api.on('before_prompt_build', async (_event, _ctx) => {
-    if (!memoryProvider) return;
-    const block = memoryProvider.systemPromptBlock();
-    if (block) {
-      return { appendSystemContext: block };
-    }
-  });
-
   // Initialize memory distiller and wire to session_end hook
   memoryDistiller = new MemoryDistiller(memoryStore, sessionIndexer);
 
@@ -98,39 +76,6 @@ async function register(api: OpenClawPluginApi): Promise<void> {
       }
     } catch (err) {
       logger.warn(`[deep-memory] session_end distillation failed: ${err}`);
-    }
-  });
-
-  // Per-turn sync via llm_output hook
-  api.on('llm_output', async (event, _ctx) => {
-    if (!memoryProvider) return;
-    const assistantContent = (event.assistantTexts ?? []).join('\n').trim();
-    if (assistantContent) {
-      await memoryProvider.syncTurn('', assistantContent); // user content not available here, use empty string
-    }
-  });
-
-  // Pre-compression hook via before_compaction
-  api.on('before_compaction', async (event, _ctx) => {
-    if (!memoryProvider) return;
-    const messages = (event.messages ?? []) as Array<{ role: string; content: unknown }>;
-    if (messages.length === 0) return;
-
-    // Convert messages to the expected format
-    const formatted = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({
-        role: m.role,
-        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
-      }));
-
-    if (formatted.length > 0) {
-      const insight = memoryProvider.onPreCompress(formatted);
-      if (insight) {
-        logger.info(`[deep-memory] pre-compaction insight extracted: ${insight.slice(0, 100)}`);
-        // insight is a string to include in compression summary — we log it for now
-        // (no OpenClaw API to inject into the compression prompt available yet)
-      }
     }
   });
 
