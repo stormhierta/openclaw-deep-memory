@@ -7,8 +7,8 @@ const ENTRY_DELIMITER = '\n§\n';
 const MEMORY_CHAR_LIMIT = 2200;
 const USER_CHAR_LIMIT = 1375;
 
-const MEMORY_PATH = join(homedir(), 'inherit', 'MEMORY.md');
-const USER_PATH = join(homedir(), 'inherit', 'USER.md');
+const MEMORY_PATH = join(homedir(), '.openclaw', 'workspace', 'MEMORY.md');
+const USER_PATH = join(homedir(), '.openclaw', 'workspace', 'USER.md');
 
 // ---------------------------------------------------------------------------
 // Memory content scanning — lightweight check for injection/exfiltration
@@ -96,7 +96,7 @@ export class MemoryStore {
   async loadFromDisk(): Promise<void> {
     /** Load entries from MEMORY.md and USER.md, capture system prompt snapshot. */
     // Ensure parent directories exist
-    await mkdir(join(homedir(), 'inherit'), { recursive: true });
+    await mkdir(join(homedir(), '.openclaw', 'workspace'), { recursive: true });
 
     this.memory_entries = await this._readFile(MEMORY_PATH);
     this.user_entries = await this._readFile(USER_PATH);
@@ -151,7 +151,7 @@ export class MemoryStore {
 
   private async _saveToDisk(target: string): Promise<void> {
     /** Persist entries to the appropriate file. Called after every mutation. */
-    await mkdir(join(homedir(), 'inherit'), { recursive: true });
+    await mkdir(join(homedir(), '.openclaw', 'workspace'), { recursive: true });
     await this._writeFile(this._pathFor(target), this._entriesFor(target));
   }
 
@@ -455,7 +455,7 @@ export class MemoryStore {
   private async _writeFile(path: string, entries: string[]): Promise<void> {
     /** Write entries to a memory file using atomic temp-file + rename. */
     const content = entries.length ? entries.join(ENTRY_DELIMITER) : '';
-    const dir = join(homedir(), 'inherit');
+    const dir = join(homedir(), '.openclaw', 'workspace');
     const tmpPath = join(dir, `.mem_${Date.now()}_${Math.random().toString(36).slice(2)}.tmp`);
 
     let fd: number | null = null;
